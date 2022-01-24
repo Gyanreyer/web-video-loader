@@ -1,102 +1,39 @@
 import type { LoaderContext } from "webpack";
 
-import {
-  CompressionEfficiencyPreset,
-  OutputFileConfig,
-  VideoCodecName,
-  VideoContainerName,
-  Options,
-} from "./types";
+import { InputOptions } from "./types";
 import transform from "./transform";
 import { cleanUpCache } from "./cache";
+import { getFileHash } from "./hash";
+import parseOptions from "./options";
 
-const DEFAULT_OPTIONS: Options = {
-  outputFiles: [
-    {
-      container: VideoContainerName.mp4,
-      videoCodec: VideoCodecName.h_264,
-    },
-    {
-      container: VideoContainerName.webm,
-      videoCodec: VideoCodecName.vp9,
-    },
-  ],
-  compressionSpeed: CompressionEfficiencyPreset.medium,
-  outputPath: "/",
-};
-
-export default async function loader(this: LoaderContext<Options>) {
+export default async function loader(
+  this: LoaderContext<InputOptions>,
+  source: string
+) {
   const loaderCallback = this.async();
 
-  const resourceQueryOptionsParams = new URLSearchParams(this.resourceQuery);
+  const { transformConfigs, esModule } = parseOptions(
+    this.getOptions(),
+    this.resourceQuery
+  );
 
-  const parsedResourceQueryOptions: Options = {};
-  const queryOptionOutputFiles: OutputFileConfig[] | undefined =
-    resourceQueryOptionsParams
-      .get("outputfiles")
-      ?.split(",")
-      .map((rawOutputFilestring) => JSON.parse(rawOutputFilestring));
-
-  if (
-    queryOptionOutputFiles &&
-    Array.isArray(queryOptionOutputFiles) &&
-    queryOptionOutputFiles.length > 0
-  ) {
-    parsedResourceQueryOptions.outputFiles = queryOptionOutputFiles;
-  }
-
-  const options: Options = {
-    ...DEFAULT_OPTIONS,
-    ...this.getOptions(),
-    ...parsedResourceQueryOptions,
-  };
-
-  if (
-    !options.outputFiles ||
-    !Array.isArray(options.outputFiles) ||
-    options.outputFiles.length === 0
-  ) {
-    return loaderCallback(
-      new Error("No valid output files provided for transcoding")
-    );
-  }
-
-  const { compressionSpeed } = options;
-
-  if (!compressionSpeed || !CompressionEfficiencyPreset[compressionSpeed]) {
-    return loaderCallback(
-      new Error("Invalid compressionSpeed provided for transcoding")
-    );
-  }
-
-  const { outputPath } = options;
-
-  if (typeof outputPath !== "string") {
-    return loaderCallback(
-      new Error("web-video-loader received invalid `outputPath` option")
-    );
-  }
-
-  const publicPath = options.publicPath || outputPath;
-
-  if (typeof publicPath !== "string") {
-    return loaderCallback(
-      new Error("web-video-loader received invalid `publicPath` option")
-    );
-  }
+  const inputFilePath = this.resourcePath;
 
   try {
     const transcodedFiles = await Promise.all(
-      options.outputFiles.map((outputFileConfig) =>
-        transform(
-          this.resourcePath,
+      transformConfigs.map(({ transcodeConfig, outputPath, publicPath }) => {
+        // Get unique hash string to use for the name of the video file we're going to output
+        const fileHash = getFileHash(source, transcodeConfig);
+
+        return transform(
+          inputFilePath,
+          fileHash,
           outputPath,
           publicPath,
-          outputFileConfig,
-          compressionSpeed,
+          transcodeConfig,
           this.emitFile
-        )
-      )
+        );
+      })
     );
 
     // Clear out any files from the cache which weren't used in an effort to save storage space and
@@ -115,7 +52,9 @@ export default async function loader(this: LoaderContext<Options>) {
 
     loaderCallback(
       null,
-      `export default { sources: ${JSON.stringify(videoSourceOutput)} };`
+      `${
+        esModule ? "export default" : "module.exports ="
+      } { sources: ${JSON.stringify(videoSourceOutput)} };`
     );
   } catch (err) {
     loaderCallback(err as Error);

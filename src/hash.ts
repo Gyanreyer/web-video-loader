@@ -1,6 +1,5 @@
-import { promises as fsPromises } from "fs";
 import { createHash } from "crypto";
-import { CompressionEfficiencyPreset, OutputFileConfig } from "./types";
+import { VideoTranscodeConfig } from "./types";
 
 /**
  * Generates a unique hashed file name for a video file that the loader will emit.
@@ -8,21 +7,16 @@ import { CompressionEfficiencyPreset, OutputFileConfig } from "./types";
  * ffmpeg should generate the output, so videos can be cached but will be invalidated if
  * the webpack configuration or video file changes.
  *
- * @param {string} filePath
- * @param {OutputFileConfig} fileConfiguration
- * @param {CompressionEfficiencyPreset} compressionEfficiencyPreset
+ * @param {string}  inputFileSource   Source string representing the input file's contents which is passed to the webpack loader function
+ * @param {VideoTranscodeConfig}  transcodeConfig   Config describing how the video should be transcoded into an output
  * @returns {string}  Unique hash string to use for the output file's name
  */
-export async function getFileHash(
-  filePath: string,
-  fileConfiguration: OutputFileConfig,
-  compressionEfficiencyPreset: CompressionEfficiencyPreset
-): Promise<string> {
-  const fileBuffer = await fsPromises.readFile(filePath);
-
-  return createHash("sha256")
-    .update(fileBuffer)
-    .update(JSON.stringify(fileConfiguration))
-    .update(compressionEfficiencyPreset)
+export function getFileHash(
+  inputFileSource: string,
+  transcodeConfig: VideoTranscodeConfig
+): string {
+  return createHash("shake256", { outputLength: 20 })
+    .update(inputFileSource)
+    .update(JSON.stringify(transcodeConfig))
     .digest("hex");
 }

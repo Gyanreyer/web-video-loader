@@ -1,12 +1,11 @@
 import { AudioCodecName, VideoCodecName, VideoContainerName } from "./types";
 
-export interface VideoContainerConfig {
+interface VideoContainerConfig {
   fileExtension: string;
   defaultVideoCodec: VideoCodecName;
   defaultAudioCodec: AudioCodecName;
   supportedVideoCodecs: VideoCodecName[];
   supportedAudioCodecs: AudioCodecName[];
-  additonalFfmpegOutputOptions: string | null;
   mimeTypeContainerString: string;
 }
 
@@ -21,9 +20,6 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
       VideoCodecName.h_265,
     ],
     supportedAudioCodecs: [AudioCodecName.aac, AudioCodecName.muted],
-    // Option allows us to pipe the mp4 file output as chunks to a data stream (see: https://github.com/fluent-ffmpeg/node-fluent-ffmpeg/issues/344)
-    additonalFfmpegOutputOptions:
-      "-movflags frag_keyframe+empty_moov+faststart",
     mimeTypeContainerString: "video/mp4",
   },
   [VideoContainerName.webm]: {
@@ -36,7 +32,6 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
       VideoCodecName.vp9,
     ],
     supportedAudioCodecs: [AudioCodecName.opus, AudioCodecName.muted],
-    additonalFfmpegOutputOptions: null,
     mimeTypeContainerString: "video/webm",
   },
 };

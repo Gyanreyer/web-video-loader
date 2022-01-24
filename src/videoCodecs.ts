@@ -5,6 +5,7 @@ interface VideoCodecConfig {
   qualityMin: number;
   qualityMax: number;
   mimeTypeCodecString: string | null;
+  additonalFfmpegOptions?: string[];
 }
 
 const videoCodecs: { [key: string]: VideoCodecConfig } = {
@@ -30,6 +31,9 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     qualityMin: 0,
     qualityMax: 51,
     mimeTypeCodecString: "hvc1",
+    // Add a tag to ensure apple devices can recognize the file as h.265 and play it correctly
+    // https://aaron.cc/ffmpeg-hevc-apple-devices/
+    additonalFfmpegOptions: ["-tag:v hvc1"],
   },
   // https://trac.ffmpeg.org/wiki/Encode/VP8
   [VideoCodecName.vp8]: {
