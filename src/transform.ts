@@ -4,12 +4,7 @@ import type { LoaderContext } from "webpack";
 import { promises as fsPromises } from "fs";
 import path from "path";
 
-import {
-  VideoCodecName,
-  AudioCodecName,
-  VideoTranscodeConfig,
-  InputOptions,
-} from "./types";
+import { AudioCodecName, VideoTranscodeConfig, InputOptions } from "./types";
 import videoCodecs from "./videoCodecs";
 import videoContainers from "./videoContainers";
 import audioCodecs from "./audioCodecs";
@@ -96,40 +91,22 @@ export default async function transform(
 
     // Apply any additional ffmpeg options needed for the video codec
     if (videoCodecConfig.additonalFfmpegOptions) {
-      videoCodecConfig.additonalFfmpegOptions.forEach((ffmpegOption) => {
-        ffmpegChain = ffmpegChain.addOption(ffmpegOption);
-      });
-    }
-
-    const videoQuality = transcodeConfig.videoQuality || "default";
-
-    if (videoQuality !== "default") {
-      // https://slhck.info/video/2017/02/24/crf-guide.html
-      ffmpegChain = ffmpegChain.addOption(`-crf ${videoQuality}`);
+      ffmpegChain = ffmpegChain.addOptions(
+        videoCodecConfig.additonalFfmpegOptions
+      );
     }
 
     if (transcodeConfig.size) {
       ffmpegChain = ffmpegChain.size(transcodeConfig.size);
     }
 
-    ffmpegChain = ffmpegChain.addOption(
-      `-preset ${transcodeConfig.compressionSpeed}`
-    );
-
     if (audioCodec === AudioCodecName.muted) {
       // Drop any audio from the input if the output should be muted
       ffmpegChain = ffmpegChain.noAudio();
     } else {
       const audioCodecConfig = audioCodecs[audioCodec];
-      const audioQuality = transcodeConfig.audioQuality || "default";
 
       ffmpegChain = ffmpegChain.audioCodec(audioCodecConfig.ffmpegCodecString);
-
-      if (audioQuality !== "default") {
-        ffmpegChain = ffmpegChain.addOption(
-          `-${audioCodecConfig.qualityFfmpegCommandName} ${audioQuality}`
-        );
-      }
     }
 
     ffmpegChain

@@ -41,79 +41,49 @@ const DEFAULT_OPTIONS: FullOptions = {
 interface ParsedVideoCodec {
   codecType: "video";
   codecName: VideoCodecName;
-  quality: number | "default";
 }
 interface ParsedAudioCodec {
   codecType: "audio";
   codecName: AudioCodecName;
-  quality: number | "default";
 }
 interface ParsedUnknownCodec {
   codecType: "unknown";
   codecName: "default";
-  quality: number | "default";
 }
 
 /**
  * Takes a codec string from an outputFile query param value and parses it into either an audio or video codec
  *
  * @example
- * parseCodecString("muted");     // { codecType: "audio", codecName: "muted", "quality": "default" }
- * parseCodecString("aac");       // { codecType: "audio", codecName: "aac", "quality": "default" }
- * parseCodecString("h.264");     // { codecType: "video", codecName: "h.264", "quality": "default" }
- * parseCodecString("h.265@40");  // { codecType: "video", codecName: "h.265", "quality": "40" }
- * parseCodecString("default");   // { codecType: "video", codecName: "default", "quality": "default" }
+ * parseCodecString("muted");     // { codecType: "audio", codecName: "muted" }
+ * parseCodecString("aac");       // { codecType: "audio", codecName: "aac" }
+ * parseCodecString("h.264");     // { codecType: "video", codecName: "h.264" }
+ * parseCodecString("h.265@40");  // { codecType: "video", codecName: "h.265" }
+ * parseCodecString("default");   // { codecType: "video", codecName: "default" }
  */
 function parseCodecString(
   codecString: string
 ): ParsedVideoCodec | ParsedAudioCodec | ParsedUnknownCodec {
-  const [codecNameString, qualityString] = codecString.split("@");
-
-  let quality: number | "default";
-
-  if (qualityString !== undefined) {
-    if (qualityString === "default") {
-      quality = qualityString;
-    } else {
-      const qualityParsedAsNumber = Number(qualityString);
-
-      if (qualityParsedAsNumber !== NaN) {
-        quality = qualityParsedAsNumber;
-      } else {
-        throw new Error(
-          `Video quality value "${qualityString}" from query param output config is not valid.`
-        );
-      }
-    }
-  } else {
-    quality = "default";
-  }
-
-  if (
-    Object.values(VideoCodecName).includes(codecNameString as VideoCodecName)
-  ) {
+  if (Object.values(VideoCodecName).includes(codecString as VideoCodecName)) {
     return {
       codecType: "video",
-      codecName: codecNameString as VideoCodecName,
-      quality,
+      codecName: codecString as VideoCodecName,
     };
   } else if (
-    Object.values(AudioCodecName).includes(codecNameString as AudioCodecName)
+    Object.values(AudioCodecName).includes(codecString as AudioCodecName)
   ) {
     return {
       codecType: "audio",
-      codecName: codecNameString as AudioCodecName,
-      quality,
+      codecName: codecString as AudioCodecName,
     };
-  } else if (codecNameString === "default") {
+  } else if (codecString === "default") {
     return {
       codecType: "unknown",
       codecName: "default",
-      quality,
     };
   } else {
     throw new Error(
-      `Invalid codec name "${codecNameString}" does not match any valid video or audio codecs.`
+      `Invalid codec name "${codecString}" does not match any valid video or audio codecs.`
     );
   }
 }
@@ -159,8 +129,6 @@ function parseOptionsFromResourceQuery(
          * 1. "container" -- only sets the container to use for the output file; video and audio codecs will be filled in with defaults for the container (ie, "mp4", "webm")
          * 2. "container/audioCodec" -- sets the container and audio codec for the output file; video codec will be filled in with default for the container (ie, "mp4/muted", "mp4/aac")
          * 3. "container/videoCodec/audioCodec" -- explicitly sets the container, video, and audio codecs for the output file (ie, "mp4/h.265/muted", "webm/vp9/opus")
-         *
-         * You can also define quality settings on video and audio codecs with the syntax "codec@quality" (ie, "mp4/h.265@40/aac@2")
          */
         const [containerString, ...codecStrings] = outputFileString.split("/");
 
@@ -179,9 +147,7 @@ function parseOptionsFromResourceQuery(
         }
 
         let videoCodecName: VideoCodecName | "default" | null = null;
-        let videoQuality: number | "default" = "default";
         let audioCodecName: AudioCodecName | "default" | null = null;
-        let audioQuality: number | "default" = "default";
 
         // Attempt to parse out video and/or audio codecs from the codec string(s)
         for (let i = 0; i < codecStrings.length; i += 1) {
@@ -191,7 +157,6 @@ function parseOptionsFromResourceQuery(
             case "video":
               if (!videoCodecName) {
                 videoCodecName = parsedVideoOrAudioCodec.codecName;
-                videoQuality = parsedVideoOrAudioCodec.quality;
               } else {
                 throw new Error(
                   `Value "${outputFileString}" provided to outputFiles query param contains more than 1 video codec.`
@@ -201,7 +166,6 @@ function parseOptionsFromResourceQuery(
             case "audio":
               if (!audioCodecName) {
                 audioCodecName = parsedVideoOrAudioCodec.codecName;
-                audioQuality = parsedVideoOrAudioCodec.quality;
               } else {
                 throw new Error(
                   `Value "${outputFileString}" provided to outputFiles query param contains more than 1 audio codec.`
@@ -215,10 +179,8 @@ function parseOptionsFromResourceQuery(
               // so throw an error
               if (!videoCodecName) {
                 videoCodecName = "default";
-                videoQuality = parsedVideoOrAudioCodec.quality;
               } else if (!audioCodecName) {
                 audioCodecName = "default";
-                audioQuality = parsedVideoOrAudioCodec.quality;
               } else {
                 throw new Error(
                   `Value "${outputFileString}" provided to outputFiles query param is not formatted correctly. A "default" codec value was provided when both a video and audio codec have already been set.`
@@ -231,9 +193,7 @@ function parseOptionsFromResourceQuery(
         return {
           container: containerName,
           videoCodec: videoCodecName || "default",
-          videoQuality,
           audioCodec: audioCodecName || "default",
-          audioQuality,
         };
       });
   }
@@ -343,16 +303,11 @@ export default function parseOptions(
         audioCodecName = videoContainerConfig.defaultAudioCodec;
       }
 
-      const videoQuality = outputFileConfig.videoQuality || "default";
-      const audioQuality = outputFileConfig.audioQuality || "default";
-
       return {
         transcodeConfig: {
           container: videoContainerName,
           videoCodec: videoCodecName,
-          videoQuality,
           audioCodec: audioCodecName,
-          audioQuality,
           size: combinedOptions.size,
           compressionSpeed: combinedOptions.compressionSpeed,
           cache: combinedOptions.cache,
