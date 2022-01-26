@@ -19,7 +19,7 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
       VideoCodecName.h_264,
       VideoCodecName.h_265,
     ],
-    supportedAudioCodecs: [AudioCodecName.aac, AudioCodecName.muted],
+    supportedAudioCodecs: [AudioCodecName.aac, AudioCodecName.flac],
     mimeTypeContainerString: "video/mp4",
   },
   [VideoContainerName.webm]: {
@@ -31,7 +31,7 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
       VideoCodecName.vp8,
       VideoCodecName.vp9,
     ],
-    supportedAudioCodecs: [AudioCodecName.opus, AudioCodecName.muted],
+    supportedAudioCodecs: [AudioCodecName.opus, AudioCodecName.vorbis],
     mimeTypeContainerString: "video/webm",
   },
 };

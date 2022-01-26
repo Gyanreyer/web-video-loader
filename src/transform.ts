@@ -4,17 +4,19 @@ import type { LoaderContext } from "webpack";
 import { promises as fsPromises } from "fs";
 import path from "path";
 
-import { AudioCodecName, VideoTranscodeConfig, InputOptions } from "./types";
+import { VideoTranscodeConfig, InputOptions } from "./types";
 import videoCodecs from "./videoCodecs";
 import videoContainers from "./videoContainers";
 import audioCodecs from "./audioCodecs";
 import { getCachedFileData, writeToCache, cacheDirectory } from "./cache";
+import { getFileNamesForVideo } from "./fileName";
 
 setFfmpegPath(ffmpegPath);
 
 export default async function transform(
   inputFilePath: string,
   fileHash: string,
+  fileNameTemplate: string,
   outputDirectory: string,
   publicPath: string,
   transcodeConfig: VideoTranscodeConfig,
@@ -32,8 +34,18 @@ export default async function transform(
     transcodeConfig.videoCodec || videoContainerConfig.defaultVideoCodec;
   const videoCodecConfig = videoCodecs[videoCodecName];
 
-  // The output file name will be the hash + the appropriate extension for the selected container (ie, ".mp4", ".webm")
-  const outputFileName = `${fileHash}.${videoContainerConfig.fileExtension}`;
+  const audioCodecName =
+    transcodeConfig.audioCodec || videoContainerConfig.defaultAudioCodec;
+
+  const { outputFileName, cacheFileName } = getFileNamesForVideo(
+    fileNameTemplate,
+    fileHash,
+    inputFilePath,
+    videoContainerConfig.fileExtension,
+    videoCodecName,
+    audioCodecName
+  );
+
   // Construct a string representing the MIME type of the video file which can be set on a
   // <source> tag's `type` attribute to help hint to browsers whether they can play the video or not
   const mimeType = `${videoContainerConfig.mimeTypeContainerString}${
@@ -62,7 +74,7 @@ export default async function transform(
   // If caching is enabled, check if we have the video file in our cache already and
   // if it is, just use that rather than making a new one
   if (transcodeConfig.cache) {
-    const cachedData = await getCachedFileData(outputFileName);
+    const cachedData = await getCachedFileData(cacheFileName);
 
     if (cachedData) {
       emitFile(outputFilePath, cachedData);
@@ -73,15 +85,6 @@ export default async function transform(
         fileSize: Buffer.byteLength(cachedData),
       };
     }
-  }
-
-  const audioCodec =
-    transcodeConfig.audioCodec || videoContainerConfig.defaultAudioCodec;
-
-  if (!videoContainerConfig.supportedAudioCodecs.includes(audioCodec)) {
-    throw new Error(
-      `Video container "${videoContainerName}" does not support audio codec "${audioCodec}"`
-    );
   }
 
   return new Promise((resolve, reject) => {
@@ -100,12 +103,11 @@ export default async function transform(
       ffmpegChain = ffmpegChain.size(transcodeConfig.size);
     }
 
-    if (audioCodec === AudioCodecName.muted) {
+    if (transcodeConfig.mute) {
       // Drop any audio from the input if the output should be muted
       ffmpegChain = ffmpegChain.noAudio();
     } else {
-      const audioCodecConfig = audioCodecs[audioCodec];
-
+      const audioCodecConfig = audioCodecs[audioCodecName];
       ffmpegChain = ffmpegChain.audioCodec(audioCodecConfig.ffmpegCodecString);
     }
 
@@ -122,7 +124,7 @@ export default async function transform(
         emitFile(outputFilePath, data);
 
         if (transcodeConfig.cache) {
-          await writeToCache(outputFileName, data);
+          await writeToCache(cacheFileName, data);
         }
 
         // Delete the temp file

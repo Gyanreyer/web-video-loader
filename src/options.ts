@@ -5,21 +5,22 @@ import {
   VideoCodecName,
   AudioCodecName,
   OutputFileConfig,
-  CompressionEfficiencyPreset,
 } from "./types";
 import videoContainers from "./videoContainers";
 
 interface FullOptions {
+  fileNameTemplate: string;
   outputFiles: OutputFileConfig[];
-  compressionSpeed: CompressionEfficiencyPreset;
   outputPath: string;
   publicPath: string | null;
+  mute: boolean;
   size: string | null;
   esModule: boolean;
   cache: boolean;
 }
 
 const DEFAULT_OPTIONS: FullOptions = {
+  fileNameTemplate: "[originalFileName]-[hash]",
   outputFiles: [
     {
       container: VideoContainerName.mp4,
@@ -30,9 +31,9 @@ const DEFAULT_OPTIONS: FullOptions = {
       videoCodec: VideoCodecName.vp9,
     },
   ],
-  compressionSpeed: CompressionEfficiencyPreset.medium,
   outputPath: "/",
   publicPath: null,
+  mute: false,
   size: null,
   esModule: false,
   cache: true,
@@ -46,24 +47,18 @@ interface ParsedAudioCodec {
   codecType: "audio";
   codecName: AudioCodecName;
 }
-interface ParsedUnknownCodec {
-  codecType: "unknown";
-  codecName: "default";
-}
 
 /**
  * Takes a codec string from an outputFile query param value and parses it into either an audio or video codec
  *
  * @example
- * parseCodecString("muted");     // { codecType: "audio", codecName: "muted" }
  * parseCodecString("aac");       // { codecType: "audio", codecName: "aac" }
  * parseCodecString("h.264");     // { codecType: "video", codecName: "h.264" }
- * parseCodecString("h.265@40");  // { codecType: "video", codecName: "h.265" }
- * parseCodecString("default");   // { codecType: "video", codecName: "default" }
+ * parseCodecString("h.265");     // { codecType: "video", codecName: "h.265" }
  */
 function parseCodecString(
   codecString: string
-): ParsedVideoCodec | ParsedAudioCodec | ParsedUnknownCodec {
+): ParsedVideoCodec | ParsedAudioCodec {
   if (Object.values(VideoCodecName).includes(codecString as VideoCodecName)) {
     return {
       codecType: "video",
@@ -76,11 +71,6 @@ function parseCodecString(
       codecType: "audio",
       codecName: codecString as AudioCodecName,
     };
-  } else if (codecString === "default") {
-    return {
-      codecType: "unknown",
-      codecName: "default",
-    };
   } else {
     throw new Error(
       `Invalid codec name "${codecString}" does not match any valid video or audio codecs.`
@@ -88,6 +78,29 @@ function parseCodecString(
   }
 }
 
+/**
+ * Parse a boolean query param value into either true or false.
+ * If the param is included with no value, ie "/video.mp4?esModule", its value will be an empty string
+ * but it should be interpreted as being set to true.
+ * Otherwise, the param can be set to either "true" or "false", ie "/video.mp4?esModule=false"
+ */
+function parseBooleanFromQueryParamValue(
+  paramValue: string,
+  paramKey: string
+): boolean {
+  if (paramValue === "" || paramValue === "true") {
+    return true;
+  } else if (paramValue === "false") {
+    return false;
+  }
+
+  throw new Error(`Option "${paramKey}=${paramValue}" is not a valid boolean`);
+}
+
+/**
+ * Takes the resource query param string from the import path and
+ * parses out any options that may be set there
+ */
 function parseOptionsFromResourceQuery(
   resourceQueryString: string
 ): InputOptions {
@@ -96,12 +109,13 @@ function parseOptionsFromResourceQuery(
   // Convert our parsed search params to an object and extract all possible options
   const {
     outputFiles: rawOutputFiles,
-    compressionSpeed: rawCompressionSpeed,
     outputPath: rawOutputPath,
     publicPath: rawPublicPath,
     size: rawSize,
     esModule: rawEsModule,
     cache: rawCache,
+    mute: rawMute,
+    fileNameTemplate: rawFileNameTemplate,
     ...otherParams
   } = Object.fromEntries(resourceQuerySearchParams);
 
@@ -127,8 +141,8 @@ function parseOptionsFromResourceQuery(
         /**
          * Output config strings can follow the following format...
          * 1. "container" -- only sets the container to use for the output file; video and audio codecs will be filled in with defaults for the container (ie, "mp4", "webm")
-         * 2. "container/audioCodec" -- sets the container and audio codec for the output file; video codec will be filled in with default for the container (ie, "mp4/muted", "mp4/aac")
-         * 3. "container/videoCodec/audioCodec" -- explicitly sets the container, video, and audio codecs for the output file (ie, "mp4/h.265/muted", "webm/vp9/opus")
+         * 2. "container/audioCodec" -- sets the container and audio codec for the output file; video codec will be filled in with default for the container (ie, "mp4/aac")
+         * 3. "container/videoCodec/audioCodec" -- explicitly sets the container, video, and audio codecs for the output file (ie, "mp4/h.265/flac", "webm/vp9/opus")
          */
         const [containerString, ...codecStrings] = outputFileString.split("/");
 
@@ -146,8 +160,8 @@ function parseOptionsFromResourceQuery(
           );
         }
 
-        let videoCodecName: VideoCodecName | "default" | null = null;
-        let audioCodecName: AudioCodecName | "default" | null = null;
+        let videoCodecName: VideoCodecName | null = null;
+        let audioCodecName: AudioCodecName | null = null;
 
         // Attempt to parse out video and/or audio codecs from the codec string(s)
         for (let i = 0; i < codecStrings.length; i += 1) {
@@ -172,21 +186,6 @@ function parseOptionsFromResourceQuery(
                 );
               }
               break;
-            default:
-              // If the codec type is unknown and we haven't set a video codec yet,
-              // assume it's for the video codec; otherwise fall back to the audio codec;
-              // if both codecs have already been set, the codec string must be invalid
-              // so throw an error
-              if (!videoCodecName) {
-                videoCodecName = "default";
-              } else if (!audioCodecName) {
-                audioCodecName = "default";
-              } else {
-                throw new Error(
-                  `Value "${outputFileString}" provided to outputFiles query param is not formatted correctly. A "default" codec value was provided when both a video and audio codec have already been set.`
-                );
-              }
-              break;
           }
         }
 
@@ -198,20 +197,8 @@ function parseOptionsFromResourceQuery(
       });
   }
 
-  // If the compressionSpeed param is set, parse its value into a CompressionEfficiencyPreset
-  if (rawCompressionSpeed) {
-    if (rawCompressionSpeed in CompressionEfficiencyPreset) {
-      parsedResourceQueryOptions.compressionSpeed =
-        rawCompressionSpeed as CompressionEfficiencyPreset;
-    } else {
-      throw new Error(
-        `Option "compressionSpeed=${rawCompressionSpeed}" does not match a valid compression speed preset.`
-      );
-    }
-  }
-
-  // The outputPath, publicPath, and size params are just strings without very easily enforcable rules,
-  // so if any of them were set, pass them directly through to the parsed options
+  // Directly pass through any params whose values are just strings
+  // which don't require parsing
   if (rawOutputPath !== undefined) {
     parsedResourceQueryOptions.outputPath = rawOutputPath;
   }
@@ -221,33 +208,42 @@ function parseOptionsFromResourceQuery(
   if (rawSize !== undefined) {
     parsedResourceQueryOptions.size = rawSize;
   }
+  if (rawFileNameTemplate !== undefined) {
+    parsedResourceQueryOptions.fileNameTemplate = rawFileNameTemplate;
+  }
 
-  // If the esModule param was set, parse its value into either true or false.
-  // If the param is included with no value, ie "/video.mp4?esModule", its value will be an empty string
-  // but it should be interpreted as being set to true.
-  // Otherwise, the param can be set to either "true" or "false", ie "/video.mp4?esModule=false"
+  // Parse any boolean option values
   if (rawEsModule !== undefined) {
-    if (rawEsModule === "" || rawEsModule === "true") {
-      parsedResourceQueryOptions.esModule = true;
-    } else if (rawEsModule === "false") {
-      parsedResourceQueryOptions.esModule = false;
-    } else {
-      throw new Error(`Option "esModule=${rawEsModule}"`);
-    }
+    parsedResourceQueryOptions.esModule = parseBooleanFromQueryParamValue(
+      rawEsModule,
+      "esModule"
+    );
   }
   if (rawCache !== undefined) {
-    if (rawCache === "" || rawCache === "true") {
-      parsedResourceQueryOptions.cache = true;
-    } else if (rawCache === "false") {
-      parsedResourceQueryOptions.cache = false;
-    } else {
-      throw new Error(`Option "cache=${rawCache}"`);
-    }
+    parsedResourceQueryOptions.cache = parseBooleanFromQueryParamValue(
+      rawCache,
+      "cache"
+    );
+  }
+  if (rawMute !== undefined) {
+    parsedResourceQueryOptions.mute = parseBooleanFromQueryParamValue(
+      rawMute,
+      "mute"
+    );
   }
 
   return parsedResourceQueryOptions;
 }
 
+/**
+ * Parse a config for how we should transcode the video from all
+ * webpack options set via the webpack config and/or query params
+ * on the asset's import path.
+ *
+ * @param {InputOptions}  webpackOptions  An object with all options set on web-video-loader in the webpack config
+ * @param {string}  resourceQueryString   A string with all query params set on the asset's import path
+ *                                          (ie, `const video = require('./video.mp4?size=320x?');` --> "?size=320x?")
+ */
 export default function parseOptions(
   webpackOptions: InputOptions,
   resourceQueryString: string
@@ -303,17 +299,24 @@ export default function parseOptions(
         audioCodecName = videoContainerConfig.defaultAudioCodec;
       }
 
+      if (!videoContainerConfig.supportedAudioCodecs.includes(audioCodecName)) {
+        throw new Error(
+          `Video container "${videoContainerName}" does not support audio codec "${audioCodecName}"`
+        );
+      }
+
       return {
         transcodeConfig: {
           container: videoContainerName,
           videoCodec: videoCodecName,
           audioCodec: audioCodecName,
+          mute: combinedOptions.mute,
           size: combinedOptions.size,
-          compressionSpeed: combinedOptions.compressionSpeed,
           cache: combinedOptions.cache,
         },
         outputPath,
         publicPath,
+        fileNameTemplate: combinedOptions.fileNameTemplate,
       };
     }) || [];
 

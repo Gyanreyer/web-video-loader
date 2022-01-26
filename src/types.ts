@@ -13,20 +13,9 @@ export enum VideoCodecName {
 
 export enum AudioCodecName {
   aac = "aac",
+  flac = "flac",
   opus = "opus",
-  muted = "muted",
-}
-
-export enum CompressionEfficiencyPreset {
-  ultrafast = "ultrafast",
-  superfast = "superfast",
-  veryfast = "veryfast",
-  faster = "faster",
-  fast = "fast",
-  medium = "medium",
-  slow = "slow",
-  slower = "slower",
-  veryslow = "veryslow",
+  vorbis = "vorbis",
 }
 
 export interface OutputFileConfig {
@@ -36,10 +25,11 @@ export interface OutputFileConfig {
 }
 
 export interface InputOptions {
+  fileNameTemplate?: string;
   outputFiles?: OutputFileConfig[];
-  compressionSpeed?: CompressionEfficiencyPreset;
   outputPath?: string;
   publicPath?: string;
+  mute?: boolean;
   size?: string;
   esModule?: boolean;
   cache?: boolean;
@@ -49,13 +39,14 @@ export interface VideoTranscodeConfig {
   container: VideoContainerName;
   videoCodec: VideoCodecName;
   audioCodec: AudioCodecName;
-  compressionSpeed: CompressionEfficiencyPreset;
   size: string | null;
   cache: boolean;
+  mute: boolean;
 }
 
 export interface TransformConfig {
   transcodeConfig: VideoTranscodeConfig;
   outputPath: string;
   publicPath: string;
+  fileNameTemplate: string;
 }

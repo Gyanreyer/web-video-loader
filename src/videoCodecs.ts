@@ -11,6 +11,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
   [VideoCodecName.av1]: {
     ffmpegCodecString: "libaom-av1",
     mimeTypeCodecString: "av01",
+    // These settings have achieved a VMAF score of 96 in testing
     additonalFfmpegOptions: [
       // cpu-used accepts a value from 0-8 defining how much we should prioritize encoding speed over quality.
       // Maxing out to 8 only results in a ~2% quality reduction compared to 0 but SIGNIFICANTLY reduces
@@ -41,6 +42,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     // constructing a codec string for h.264 is a huge pain and we can pretty much guarantee every browser supports it anyways
     // so there's less value in specifying a codec on the MIME type
     mimeTypeCodecString: null,
+    // These settings have achieved a VMAF score of 95 in testing
     additonalFfmpegOptions: [
       // crf enables using a variable bitrate to save file size on less complex portions of the video while still targeting
       // a consistent visual quality. This option accepts a value 0-51, where 0 is highest quality and largest file size and
@@ -58,6 +60,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
   [VideoCodecName.h_265]: {
     ffmpegCodecString: "libx265",
     mimeTypeCodecString: "hvc1",
+    // These settings have achieved a VMAF score of 92 in testing
     additonalFfmpegOptions: [
       // Add a tag to ensure apple devices can recognize the file as h.265 and play it correctly
       // https://aaron.cc/ffmpeg-hevc-apple-devices/
@@ -73,9 +76,9 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
   [VideoCodecName.vp8]: {
     ffmpegCodecString: "libvpx",
     mimeTypeCodecString: "vp8",
+    // These settings have achieved a VMAF score of 78 in testing; not good, using vp8 is not recommended
     additonalFfmpegOptions: [
-      "-crf 12",
-      "-b:v 0",
+      "-crf 10",
       // deadline option takes a preset value which defines how to balance between encoding speed and quality
       // "good" is a good default for most cases
       "-deadline good",
@@ -86,8 +89,9 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
   [VideoCodecName.vp9]: {
     ffmpegCodecString: "libvpx-vp9",
     mimeTypeCodecString: "vp9",
+    // These settings have achieved a VMAF score of 91 in testing
     additonalFfmpegOptions: [
-      "-crf 33",
+      "-crf 32",
       "-b:v 0",
       "-deadline good",
       "-cpu-used 2",

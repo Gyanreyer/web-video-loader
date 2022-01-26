@@ -16,6 +16,7 @@ module.exports = {
           {
             loader: path.resolve("../dist/index.js"),
             options: {
+              fileNameTemplate: "[originalFileName]-[hash]",
               outputFiles: [
                 {
                   container: "mp4",
@@ -30,7 +31,7 @@ module.exports = {
                   videoCodec: "vp9",
                 },
               ],
-              compressionEfficiencyPreset: "superfast",
+              mute: true,
               outputPath: "assets/videos",
             },
           },
