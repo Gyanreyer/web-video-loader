@@ -39,9 +39,9 @@ export interface VideoTranscodeConfig {
   container: VideoContainerName;
   videoCodec: VideoCodecName;
   audioCodec: AudioCodecName;
+  mute: boolean;
   size: string | null;
   cache: boolean;
-  mute: boolean;
 }
 
 export interface TransformConfig {

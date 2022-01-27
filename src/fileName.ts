@@ -59,7 +59,7 @@ export function getFileNamesForVideo(
     outputFileName: `${fileNameTemplate
       .replace(/\[hash\]/g, fileHash)
       .replace(/\[originalFileName\]/g, inputFileName)
-      .replace(/\[videoCodec\]/g, videoCodecName)
+      .replace(/\[videoCodec\]/g, videoCodecName.replace(".", "_"))
       .replace(/\[audioCodec\]/g, audioCodecName)}.${outputFileExtension}`,
     // only use the hash + file extension for the cached file name so changes to the file name template doesn't make a difference
     cacheFileName: `${fileHash}.${outputFileExtension}`,
