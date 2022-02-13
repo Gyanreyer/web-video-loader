@@ -5,7 +5,7 @@ import { VideoTranscodeConfig } from "./constants/types";
 import videoCodecs from "./constants/videoCodecs";
 import videoContainers from "./constants/videoContainers";
 import audioCodecs from "./constants/audioCodecs";
-import { getCachedFileData, writeToCache, cacheDirectory } from "./cache";
+import { getCachedFileData, writeToCache } from "./cache";
 import { getFileNamesForVideo } from "./fileName";
 import { PassThrough } from "stream";
 
@@ -18,6 +18,7 @@ export default async function transform(
   transcodeConfig: VideoTranscodeConfig
 ): Promise<{
   fileName: string;
+  cacheFileName: string | null;
   mimeType: string;
   videoDataBuffer: Buffer;
 }> {
@@ -61,6 +62,7 @@ export default async function transform(
     if (cachedData) {
       return {
         fileName: outputFileName,
+        cacheFileName,
         mimeType,
         videoDataBuffer: cachedData,
       };
@@ -68,27 +70,29 @@ export default async function transform(
   }
 
   return new Promise((resolve, reject) => {
-    let ffmpegChain = ffmpeg(inputFilePath)
+    let ffmpegCommand = ffmpeg(inputFilePath)
       .format(videoContainerName)
       .videoCodec(videoCodecConfig.ffmpegCodecString);
 
     // Apply any additional ffmpeg options needed for the video codec
     if (videoCodecConfig.additonalFfmpegOptions) {
-      ffmpegChain = ffmpegChain.addOptions(
+      ffmpegCommand = ffmpegCommand.addOptions(
         videoCodecConfig.additonalFfmpegOptions
       );
     }
 
     if (transcodeConfig.size) {
-      ffmpegChain = ffmpegChain.size(transcodeConfig.size);
+      ffmpegCommand = ffmpegCommand.size(transcodeConfig.size);
     }
 
     if (isMuted) {
       // Drop any audio from the input if the output should be muted
-      ffmpegChain = ffmpegChain.noAudio();
+      ffmpegCommand = ffmpegCommand.noAudio();
     } else {
       const audioCodecConfig = audioCodecs[audioCodecName];
-      ffmpegChain = ffmpegChain.audioCodec(audioCodecConfig.ffmpegCodecString);
+      ffmpegCommand = ffmpegCommand.audioCodec(
+        audioCodecConfig.ffmpegCodecString
+      );
     }
 
     const streamBuffer = new PassThrough();
@@ -100,18 +104,21 @@ export default async function transform(
     streamBuffer.on("end", async () => {
       const outputBuffer = Buffer.concat(buffers);
 
-      if (transcodeConfig.cache) {
+      const shouldCache = transcodeConfig.cache;
+
+      if (shouldCache) {
         await writeToCache(cacheFileName, outputBuffer);
       }
 
       resolve({
         fileName: outputFileName,
+        cacheFileName: shouldCache ? cacheFileName : null,
         mimeType,
         videoDataBuffer: outputBuffer,
       });
     });
 
-    ffmpegChain
+    ffmpegCommand
       .on("error", (err: Error, stdout: string, stderr: string) => {
         console.error(
           `An ffmpeg error occurred while transcoding ${outputFileName}:`,

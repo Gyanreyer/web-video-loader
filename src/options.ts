@@ -1,34 +1,15 @@
-import { z } from "zod";
-
 import parseOptionsFromResourceQuery from "./parseResourceQueryOptions";
 
 // Constants
 import videoContainers from "./constants/videoContainers";
-import {
-  defaultFileNameTemplate,
-  defaultOutputFiles,
-} from "./constants/defaultOptions";
 
 // Types
-import { OutputFileConfigArray } from "./constants/zodTypes";
+import { Options } from "./constants/zodTypes";
 import {
   VideoCodecName,
   AudioCodecName,
   TransformConfig,
 } from "./constants/types";
-
-const Options = z.object({
-  fileNameTemplate: z.string().default(defaultFileNameTemplate),
-  outputFiles: OutputFileConfigArray.default(defaultOutputFiles),
-  outputPath: z.string().default("/"),
-  publicPath: z.string().nullish().default(null),
-  mute: z.boolean().default(false),
-  size: z.string().nullish().default(null),
-  esModule: z.boolean().default(false),
-  cache: z.boolean().default(true),
-});
-
-type Options = z.infer<typeof Options>;
 
 /**
  * Parse a config for how we should transcode the video from all
@@ -48,7 +29,7 @@ export default function parseOptions(
 
   const parsedWebpackOptions = Options.parse(webpackOptions);
 
-  const combinedOptions: Options = {
+  const combinedOptions = {
     ...parsedWebpackOptions,
     ...resourceQueryOptions,
   };

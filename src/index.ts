@@ -1,4 +1,4 @@
-import type { LoaderContext } from "webpack";
+import { LoaderContext } from "webpack";
 import path from "path";
 
 import transform from "./transform";
@@ -20,6 +20,8 @@ export default async function loader(
   const inputFilePath = this.resourcePath;
 
   try {
+    const cacheFileNames: string[] = [];
+
     const transcodedFiles = await Promise.all(
       transformConfigs.map(
         async ({
@@ -31,12 +33,13 @@ export default async function loader(
           // Get unique hash string to use for the name of the video file we're going to output
           const fileHash = getFileHash(source, transcodeConfig);
 
-          const { fileName, mimeType, videoDataBuffer } = await transform(
-            inputFilePath,
-            fileHash,
-            fileNameTemplate,
-            transcodeConfig
-          );
+          const { fileName, cacheFileName, mimeType, videoDataBuffer } =
+            await transform(
+              inputFilePath,
+              fileHash,
+              fileNameTemplate,
+              transcodeConfig
+            );
 
           // File path that the video will be stored at; this path is relative to the webpack output directory,
           // so if the output directory is `./dist` and the `outputDirectory` is set to `assets/videos`, the video files
@@ -48,6 +51,10 @@ export default async function loader(
           const outputFileSrc = `${publicPath}${
             publicPath.endsWith("/") ? "" : "/"
           }${fileName}`;
+
+          if (cacheFileName) {
+            cacheFileNames.push(cacheFileName);
+          }
 
           return {
             src: outputFileSrc,
@@ -61,7 +68,7 @@ export default async function loader(
 
     // Clear out any files from the cache which weren't used in an effort to save storage space and
     // avoid things getting bloated out of control
-    await cleanUpCache(transcodedFiles.map(({ fileName }) => fileName));
+    await cleanUpCache(cacheFileNames);
 
     // Sort the files by size from smallest -> largest
     const filesSortedBySize = transcodedFiles.sort(
