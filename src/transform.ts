@@ -1,15 +1,13 @@
 import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
 import ffmpeg, { setFfmpegPath } from "fluent-ffmpeg";
-import type { LoaderContext } from "webpack";
-import { promises as fsPromises } from "fs";
-import path from "path";
 
-import { VideoTranscodeConfig, InputOptions } from "./types";
-import videoCodecs from "./videoCodecs";
-import videoContainers from "./videoContainers";
-import audioCodecs from "./audioCodecs";
+import { VideoTranscodeConfig } from "./constants/types";
+import videoCodecs from "./constants/videoCodecs";
+import videoContainers from "./constants/videoContainers";
+import audioCodecs from "./constants/audioCodecs";
 import { getCachedFileData, writeToCache, cacheDirectory } from "./cache";
 import { getFileNamesForVideo } from "./fileName";
+import { PassThrough } from "stream";
 
 setFfmpegPath(ffmpegPath);
 
@@ -17,15 +15,11 @@ export default async function transform(
   inputFilePath: string,
   fileHash: string,
   fileNameTemplate: string,
-  outputDirectory: string,
-  publicPath: string,
-  transcodeConfig: VideoTranscodeConfig,
-  emitFile: LoaderContext<InputOptions>["emitFile"]
+  transcodeConfig: VideoTranscodeConfig
 ): Promise<{
-  filePath: string;
   fileName: string;
   mimeType: string;
-  fileSize: number;
+  videoDataBuffer: Buffer;
 }> {
   const videoContainerName = transcodeConfig.container;
   const videoContainerConfig = videoContainers[videoContainerName];
@@ -37,13 +31,15 @@ export default async function transform(
   const audioCodecName =
     transcodeConfig.audioCodec || videoContainerConfig.defaultAudioCodec;
 
+  const isMuted = transcodeConfig.mute;
+
   const { outputFileName, cacheFileName } = getFileNamesForVideo(
     fileNameTemplate,
     fileHash,
     inputFilePath,
     videoContainerConfig.fileExtension,
     videoCodecName,
-    audioCodecName
+    isMuted ? "muted" : audioCodecName
   );
 
   // Construct a string representing the MIME type of the video file which can be set on a
@@ -57,32 +53,16 @@ export default async function transform(
       : ""
   }`;
 
-  // File path that the video will be stored at; this path is relative to the webpack output directory,
-  // so if the output directory is `./dist` and the `outputDirectory` is set to `assets/videos`, the video files
-  // will end up being created in `./dist/assets/videos`
-  const outputFilePath = path.join(outputDirectory, outputFileName);
-
-  // File path which we'll temporarily use while ffmpeg is encoding the video file; once everything is done,
-  // we'll delete this file
-  const tempOutputFilePath = path.join(cacheDirectory, outputFileName);
-
-  // URL path which the video file can be loaded from via an `src` attribute in the app
-  const outputFileSrc = `${publicPath}${
-    publicPath.endsWith("/") ? "" : "/"
-  }${outputFileName}`;
-
   // If caching is enabled, check if we have the video file in our cache already and
   // if it is, just use that rather than making a new one
   if (transcodeConfig.cache) {
     const cachedData = await getCachedFileData(cacheFileName);
 
     if (cachedData) {
-      emitFile(outputFilePath, cachedData);
       return {
-        filePath: outputFileSrc,
         fileName: outputFileName,
         mimeType,
-        fileSize: Buffer.byteLength(cachedData),
+        videoDataBuffer: cachedData,
       };
     }
   }
@@ -103,13 +83,33 @@ export default async function transform(
       ffmpegChain = ffmpegChain.size(transcodeConfig.size);
     }
 
-    if (transcodeConfig.mute) {
+    if (isMuted) {
       // Drop any audio from the input if the output should be muted
       ffmpegChain = ffmpegChain.noAudio();
     } else {
       const audioCodecConfig = audioCodecs[audioCodecName];
       ffmpegChain = ffmpegChain.audioCodec(audioCodecConfig.ffmpegCodecString);
     }
+
+    const streamBuffer = new PassThrough();
+
+    const buffers: Buffer[] = [];
+    streamBuffer.on("data", (buf: Buffer) => {
+      buffers.push(buf);
+    });
+    streamBuffer.on("end", async () => {
+      const outputBuffer = Buffer.concat(buffers);
+
+      if (transcodeConfig.cache) {
+        await writeToCache(cacheFileName, outputBuffer);
+      }
+
+      resolve({
+        fileName: outputFileName,
+        mimeType,
+        videoDataBuffer: outputBuffer,
+      });
+    });
 
     ffmpegChain
       .on("error", (err: Error, stdout: string, stderr: string) => {
@@ -119,24 +119,6 @@ export default async function transform(
         );
         reject(err);
       })
-      .on("end", async () => {
-        const data = await fsPromises.readFile(tempOutputFilePath);
-        emitFile(outputFilePath, data);
-
-        if (transcodeConfig.cache) {
-          await writeToCache(cacheFileName, data);
-        }
-
-        // Delete the temp file
-        await fsPromises.unlink(tempOutputFilePath);
-
-        resolve({
-          filePath: outputFileSrc,
-          fileName: outputFileName,
-          mimeType,
-          fileSize: Buffer.byteLength(data),
-        });
-      })
-      .save(tempOutputFilePath);
+      .writeToStream(streamBuffer);
   });
 }

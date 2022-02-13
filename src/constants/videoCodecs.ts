@@ -1,4 +1,4 @@
-import { VideoCodecName } from "./types";
+import { VideoCodecNameEnum } from "./zodTypes";
 
 interface VideoCodecConfig {
   ffmpegCodecString: string;
@@ -8,7 +8,7 @@ interface VideoCodecConfig {
 
 const videoCodecs: { [key: string]: VideoCodecConfig } = {
   // https://trac.ffmpeg.org/wiki/Encode/AV1
-  [VideoCodecName.av1]: {
+  [VideoCodecNameEnum.enum.av1]: {
     ffmpegCodecString: "libaom-av1",
     mimeTypeCodecString: "av01",
     // These settings have achieved a VMAF score of 96 in testing
@@ -37,7 +37,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/H.264
-  [VideoCodecName.h_264]: {
+  [VideoCodecNameEnum.enum["h.264"]]: {
     ffmpegCodecString: "libx264",
     // constructing a codec string for h.264 is a huge pain and we can pretty much guarantee every browser supports it anyways
     // so there's less value in specifying a codec on the MIME type
@@ -54,10 +54,13 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
       // of taking longer.
       // "medium" is a sensible default which produces a good balance between a fast encode time and a relatively small file.
       "-preset medium",
+      // Flags enable encoding h.264 to a stream buffer
+      "-movflags frag_keyframe+empty_moov",
+      "-movflags +faststart",
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/H.265
-  [VideoCodecName.h_265]: {
+  [VideoCodecNameEnum.enum["h.265"]]: {
     ffmpegCodecString: "libx265",
     mimeTypeCodecString: "hvc1",
     // These settings have achieved a VMAF score of 92 in testing
@@ -69,11 +72,14 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
       // 28 is a reasonable default which achieves a similar level of quality to h.264 at crf 23
       "-crf 28",
       "-preset medium",
+      // Flags enable encoding h.265 to a stream buffer
+      "-movflags frag_keyframe+empty_moov",
+      "-movflags +faststart",
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/VP8
   // https://www.webmproject.org/docs/encoder-parameters/
-  [VideoCodecName.vp8]: {
+  [VideoCodecNameEnum.enum.vp8]: {
     ffmpegCodecString: "libvpx",
     mimeTypeCodecString: "vp8",
     // These settings have achieved a VMAF score of 78 in testing; not good, using vp8 is not recommended
@@ -86,7 +92,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/VP9
-  [VideoCodecName.vp9]: {
+  [VideoCodecNameEnum.enum.vp9]: {
     ffmpegCodecString: "libvpx-vp9",
     mimeTypeCodecString: "vp9",
     // These settings have achieved a VMAF score of 91 in testing

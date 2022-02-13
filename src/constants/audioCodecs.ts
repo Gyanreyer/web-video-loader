@@ -1,4 +1,4 @@
-import { AudioCodecName } from "./types";
+import { AudioCodecNameEnum } from "./zodTypes";
 
 interface AudioCodecConfig {
   ffmpegCodecString: string;
@@ -6,16 +6,16 @@ interface AudioCodecConfig {
 
 const audioCodecs: { [key: string]: AudioCodecConfig } = {
   // https://trac.ffmpeg.org/wiki/Encode/AAC
-  [AudioCodecName.aac]: {
+  [AudioCodecNameEnum.enum.aac]: {
     ffmpegCodecString: "aac",
   },
-  [AudioCodecName.flac]: {
+  [AudioCodecNameEnum.enum.flac]: {
     ffmpegCodecString: "flac",
   },
-  [AudioCodecName.opus]: {
+  [AudioCodecNameEnum.enum.opus]: {
     ffmpegCodecString: "libopus",
   },
-  [AudioCodecName.vorbis]: {
+  [AudioCodecNameEnum.enum.vorbis]: {
     ffmpegCodecString: "libvorbis",
   },
 };

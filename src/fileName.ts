@@ -1,7 +1,11 @@
 import { createHash } from "crypto";
 import path from "path";
 
-import { AudioCodecName, VideoCodecName, VideoTranscodeConfig } from "./types";
+import {
+  VideoCodecName,
+  AudioCodecName,
+  VideoTranscodeConfig,
+} from "./constants/types";
 
 /**
  * Generates a unique hashed string for a video output which can be used to identify it.
@@ -44,7 +48,7 @@ export function getFileNamesForVideo(
   inputFilePath: string,
   outputFileExtension: string,
   videoCodecName: VideoCodecName,
-  audioCodecName: AudioCodecName
+  audioCodecName: AudioCodecName | "muted"
 ): { outputFileName: string; cacheFileName: string } {
   // Get the input file's name without the extension so we can insert that where necessary in the template
   const inputFileName = path.basename(
