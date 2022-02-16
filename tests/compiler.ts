@@ -3,13 +3,13 @@ import webpack from "webpack";
 import { createFsFromVolume } from "memfs";
 import { Volume } from "memfs/lib/volume";
 
-export default function (
+export default async function (
   fixture: string,
   options = {}
-): {
-  compilePromise: Promise<webpack.StatsCompilation>;
+): Promise<{
+  compiledStats: webpack.StatsCompilation;
   fsVolume: Volume;
-} {
+}> {
   const compiler = webpack({
     context: __dirname,
     entry: `./${fixture}`,
@@ -35,8 +35,8 @@ export default function (
   compiler.outputFileSystem = createFsFromVolume(fsVolume);
   compiler.outputFileSystem.join = path.join.bind(path);
 
-  return {
-    compilePromise: new Promise((resolve, reject) => {
+  const compiledStats: webpack.StatsCompilation = await new Promise(
+    (resolve, reject) => {
       compiler.run((err, stats) => {
         if (err || !stats) return reject(err);
         if (stats.hasErrors()) reject(stats.toJson().errors);
@@ -45,7 +45,11 @@ export default function (
 
         resolve(compiledStats);
       });
-    }),
+    }
+  );
+
+  return {
+    compiledStats,
     fsVolume,
   };
 }

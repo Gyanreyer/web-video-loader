@@ -17,7 +17,7 @@ jest.mock("../dist/cache.js", () => {
 
 beforeEach(() => {
   rimraf.sync(
-    `${path.resolve(__dirname, "../node_modules/.cache/web-video-loader")}/*`
+    `${path.resolve(__dirname, "../node_modules/.cache/web-video-loader/*")}`
   );
 });
 
@@ -26,15 +26,14 @@ afterEach(() => {
 });
 
 test("output video files are cached correctly when the cache option is enabled", async () => {
-  let { compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  let { fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate: "output",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
     ],
   });
-  await compilePromise;
 
   // getCachedFileData should have returned null because the file doesn't initially exist in the cache
   expect(getCachedFileDataSpy).toHaveBeenCalledTimes(1);
@@ -47,15 +46,14 @@ test("output video files are cached correctly when the cache option is enabled",
   );
 
   // Re-run with exact same file output config
-  ({ compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  ({ fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate: "output",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
     ],
   }));
-  await compilePromise;
 
   // getCachedFileData should have resolved with data from the cache since we've already created a file with this exact config
   expect(getCachedFileDataSpy).toHaveBeenCalledTimes(2);
@@ -76,16 +74,15 @@ test("the cache is invalidated if the file output config changes", async () => {
     .readFileSync(path.resolve(__dirname, "BigBuckBunny.mp4"))
     .toString();
 
-  let { compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  let { compiledStats, fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate: "output-[hash]",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
     ],
     // cache is true by default
   });
-  let compiledStats = await compilePromise;
 
   // getCachedFileData should have returned null because the file doesn't initially exist in the cache
   expect(getCachedFileDataSpy).toHaveBeenCalledTimes(1);
@@ -123,9 +120,9 @@ test("the cache is invalidated if the file output config changes", async () => {
     path.resolve(__dirname, "dist", `output-${expectedFileHash1}.mp4`)
   );
 
-  ({ compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  ({ compiledStats, fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate: "output-[hash]",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
@@ -133,7 +130,6 @@ test("the cache is invalidated if the file output config changes", async () => {
     mute: true,
     // cache is true by default
   }));
-  compiledStats = await compilePromise;
 
   // getCachedFileData should have returned null again because the cache is invalidated
   expect(getCachedFileDataSpy).toHaveBeenCalledTimes(2);
@@ -178,16 +174,15 @@ test("the cache is invalidated if the file output config changes", async () => {
 });
 
 test("output files are not cached if the cache option is false", async () => {
-  let { compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  let { compiledStats, fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate: "output",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
     ],
     cache: false,
   });
-  await compilePromise;
 
   expect(getCachedFileDataSpy).not.toHaveBeenCalled();
 
@@ -203,16 +198,15 @@ test("output files are not cached if the cache option is false", async () => {
     )
   ).toEqual([]);
 
-  ({ compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  ({ compiledStats, fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate: "output",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
     ],
     cache: false,
   }));
-  await compilePromise;
 
   expect(getCachedFileDataSpy).not.toHaveBeenCalled();
 

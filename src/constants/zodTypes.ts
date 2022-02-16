@@ -46,7 +46,7 @@ const DEFAULT_OUTPUT_FILES: OutputFileConfigArray = [
 
 export const Options = z.object({
   fileNameTemplate: z.string().default(DEFAULT_FILE_NAME_TEMPLATE),
-  outputFiles: OutputFileConfigArray.default(DEFAULT_OUTPUT_FILES),
+  outputFormats: OutputFileConfigArray.default(DEFAULT_OUTPUT_FILES),
   outputPath: z.string().default(DEFAULT_OUTPUT_PATH),
   publicPath: z.string().nullish().default(null),
   // Preserve any audio on the input file by default

@@ -47,7 +47,7 @@ function parseCodecString(
   }
 
   throw new Error(
-    `Invalid codec name "${codecString}" does not match any valid video or audio codecs.`
+    `web-video-loader: invalid codec name "${codecString}" does not match any valid video or audio codecs.`
   );
 }
 
@@ -67,14 +67,14 @@ function parseBooleanFromQueryParamValue(
     return false;
   }
 
-  throw new Error(`Option "${paramKey}=${paramValue}" is not a valid boolean`);
+  throw new Error(
+    `web-video-loader received invalid query param option "${paramKey}=${paramValue}": value is not a valid boolean`
+  );
 }
-
-// type OutputFileConfig = z.infer<typeof OutputFileConfig>;
 
 const ParsedResourceQueryOptions = z.object({
   fileNameTemplate: z.string().optional(),
-  outputFiles: OutputFileConfigArray.optional(),
+  outputFormats: OutputFileConfigArray.optional(),
   outputPath: z.string().optional(),
   publicPath: z.string().optional(),
   mute: z.boolean().optional(),
@@ -95,7 +95,7 @@ export default function parseOptionsFromResourceQuery(
 
   // Convert our parsed search params to an object and extract all possible options
   const {
-    outputFiles: rawOutputFiles,
+    outputFormats: rawoutputFormats,
     outputPath: rawOutputPath,
     publicPath: rawPublicPath,
     size: rawSize,
@@ -110,7 +110,7 @@ export default function parseOptionsFromResourceQuery(
   const invalidParamKeys = Object.keys(otherParams);
   if (invalidParamKeys.length !== 0) {
     throw new Error(
-      `Received invalid params in resource query "${resourceQueryString}": ${invalidParamKeys.join(
+      `web-video-loader received invalid params in resource query "${resourceQueryString}": ${invalidParamKeys.join(
         ", "
       )} ${
         invalidParamKeys.length === 1 ? "option is" : "options are"
@@ -120,13 +120,13 @@ export default function parseOptionsFromResourceQuery(
 
   const parsedResourceQueryOptions: ParsedResourceQueryOptions = {};
 
-  if (rawOutputFiles !== undefined) {
-    // The outputFiles query param takes a comma-separated list of output config strings
-    const outputFileStrings = rawOutputFiles.split(",");
+  if (rawoutputFormats !== undefined) {
+    // The outputFormats query param takes a comma-separated list of output config strings
+    const outputFormatstrings = rawoutputFormats.split(",");
 
-    if (outputFileStrings.length > 0) {
-      parsedResourceQueryOptions.outputFiles = outputFileStrings.map(
-        (outputFileString) => {
+    if (outputFormatstrings.length > 0) {
+      parsedResourceQueryOptions.outputFormats = outputFormatstrings.map(
+        (outputFormatstring) => {
           /**
            * Output config strings can follow the following format...
            * 1. "container" -- only sets the container to use for the output file; video and audio codecs will be filled in with defaults for the container (ie, "mp4", "webm")
@@ -134,7 +134,7 @@ export default function parseOptionsFromResourceQuery(
            * 3. "container/videoCodec/audioCodec" -- explicitly sets the container, video, and audio codecs for the output file (ie, "mp4/h.265/flac", "webm/vp9/opus")
            */
           const [containerString, ...codecStrings] =
-            outputFileString.split("/");
+            outputFormatstring.split("/");
 
           const containerName = VideoContainerNameEnum.parse(containerString);
 
@@ -151,7 +151,7 @@ export default function parseOptionsFromResourceQuery(
                   videoCodecName = parsedVideoOrAudioCodec.codecName;
                 } else {
                   throw new Error(
-                    `Value "${outputFileString}" provided to outputFiles query param contains more than 1 video codec.`
+                    `web-video-loader: Value "${outputFormatstring}" provided to outputFormats query param contains more than 1 video codec.`
                   );
                 }
                 break;
@@ -160,7 +160,7 @@ export default function parseOptionsFromResourceQuery(
                   audioCodecName = parsedVideoOrAudioCodec.codecName;
                 } else {
                   throw new Error(
-                    `Value "${outputFileString}" provided to outputFiles query param contains more than 1 audio codec.`
+                    `web-video-loader: Value "${outputFormatstring}" provided to outputFormats query param contains more than 1 audio codec.`
                   );
                 }
                 break;

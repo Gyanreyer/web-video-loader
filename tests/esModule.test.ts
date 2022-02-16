@@ -15,8 +15,8 @@ jest.mock(
 );
 
 test("esModule option correctly changes whether the loader's output is in esmodule or commonjs format", async () => {
-  let { compilePromise } = await compiler("./BigBuckBunny.mp4", {
-    outputFiles: [
+  let { compiledStats } = await compiler("./BigBuckBunny.mp4", {
+    outputFormats: [
       {
         container: "mp4",
       },
@@ -24,7 +24,6 @@ test("esModule option correctly changes whether the loader's output is in esmodu
     // esModule is false by default
   });
 
-  let compiledStats = await compilePromise;
   let output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(
@@ -32,8 +31,8 @@ test("esModule option correctly changes whether the loader's output is in esmodu
     `module.exports = { sources: [{"src":"/videoName.mp4","type":"video/mp4"}] };`
   );
 
-  ({ compilePromise } = await compiler("./BigBuckBunny.mp4", {
-    outputFiles: [
+  ({ compiledStats } = await compiler("./BigBuckBunny.mp4", {
+    outputFormats: [
       {
         container: "mp4",
       },
@@ -41,7 +40,6 @@ test("esModule option correctly changes whether the loader's output is in esmodu
     esModule: true,
   }));
 
-  compiledStats = await compilePromise;
   output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(
@@ -50,15 +48,14 @@ test("esModule option correctly changes whether the loader's output is in esmodu
   );
 
   // Setting the option via a query param also works
-  ({ compilePromise } = await compiler("./BigBuckBunny.mp4?esModule", {
-    outputFiles: [
+  ({ compiledStats } = await compiler("./BigBuckBunny.mp4?esModule", {
+    outputFormats: [
       {
         container: "mp4",
       },
     ],
   }));
 
-  compiledStats = await compilePromise;
   output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(
@@ -67,8 +64,8 @@ test("esModule option correctly changes whether the loader's output is in esmodu
   );
 
   // Setting the option via a query param overrides whatever is set in the webpack config
-  ({ compilePromise } = await compiler("./BigBuckBunny.mp4?esModule=false", {
-    outputFiles: [
+  ({ compiledStats } = await compiler("./BigBuckBunny.mp4?esModule=false", {
+    outputFormats: [
       {
         container: "mp4",
       },
@@ -76,7 +73,6 @@ test("esModule option correctly changes whether the loader's output is in esmodu
     esModule: true,
   }));
 
-  compiledStats = await compilePromise;
   output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(

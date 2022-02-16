@@ -34,6 +34,9 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
       // this won't make a difference in lower-resolution videos, but will definitely make a difference with 1080p+ resolutions
       "-tile-columns 1",
       "-tile-rows 1",
+      // Flags enable encoding av1 to a stream buffer
+      "-movflags frag_keyframe+empty_moov",
+      "-movflags +faststart",
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/H.264

@@ -32,10 +32,9 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
   },
   [VideoContainerNameEnum.enum.webm]: {
     fileExtension: "webm",
-    defaultVideoCodec: VideoCodecNameEnum.enum.vp8,
+    defaultVideoCodec: VideoCodecNameEnum.enum.vp9,
     defaultAudioCodec: AudioCodecNameEnum.enum.opus,
     supportedVideoCodecs: [
-      VideoCodecNameEnum.enum.av1,
       VideoCodecNameEnum.enum.vp8,
       VideoCodecNameEnum.enum.vp9,
     ],

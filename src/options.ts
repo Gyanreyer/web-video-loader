@@ -27,7 +27,15 @@ export default function parseOptions(
   const resourceQueryOptions =
     parseOptionsFromResourceQuery(resourceQueryString);
 
-  const parsedWebpackOptions = Options.parse(webpackOptions);
+  const validateWebpackOptionsResult = Options.safeParse(webpackOptions);
+
+  if (!validateWebpackOptionsResult.success) {
+    throw new Error(
+      `web-video-loader received invalid value for option "${validateWebpackOptionsResult.error.errors[0].path}": ${validateWebpackOptionsResult.error.errors[0].message}`
+    );
+  }
+
+  const parsedWebpackOptions = validateWebpackOptionsResult.data;
 
   const combinedOptions = {
     ...parsedWebpackOptions,
@@ -38,7 +46,7 @@ export default function parseOptions(
   const publicPath = combinedOptions.publicPath || outputPath;
 
   const transformConfigs =
-    combinedOptions.outputFiles?.map((outputFileConfig): TransformConfig => {
+    combinedOptions.outputFormats?.map((outputFileConfig): TransformConfig => {
       const videoContainerName = outputFileConfig.container;
       const videoContainerConfig = videoContainers[videoContainerName];
 

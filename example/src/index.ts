@@ -1,4 +1,4 @@
-const video: WebVideo = require("assets/BigBuckBunny.mp4");
+import video from "assets/BigBuckBunny.mp4";
 
 const videoElement = document.createElement("video");
 videoElement.controls = true;

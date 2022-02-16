@@ -12,14 +12,14 @@ export default async function loader(
 ) {
   const loaderCallback = this.async();
 
-  const { transformConfigs, esModule } = parseOptions(
-    this.getOptions(),
-    this.resourceQuery
-  );
-
-  const inputFilePath = this.resourcePath;
-
   try {
+    const { transformConfigs, esModule } = parseOptions(
+      this.getOptions(),
+      this.resourceQuery
+    );
+
+    const inputFilePath = this.resourcePath;
+
     const cacheFileNames: string[] = [];
 
     const transcodedFiles = await Promise.all(
@@ -48,7 +48,7 @@ export default async function loader(
           this.emitFile(outputFilePath, videoDataBuffer);
 
           // URL path which the video file can be loaded from via an `src` attribute in the app
-          const outputFileSrc = `${publicPath}${
+          const outputFormatsrc = `${publicPath}${
             publicPath.endsWith("/") ? "" : "/"
           }${fileName}`;
 
@@ -57,7 +57,7 @@ export default async function loader(
           }
 
           return {
-            src: outputFileSrc,
+            src: outputFormatsrc,
             type: mimeType,
             fileName,
             fileSize: Buffer.byteLength(videoDataBuffer),

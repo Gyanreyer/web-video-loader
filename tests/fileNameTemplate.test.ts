@@ -23,10 +23,10 @@ test("output file names are constructed correctly from the fileNameTemplate opti
     )
     .digest("hex");
 
-  let { compilePromise, fsVolume } = await compiler("./BigBuckBunny.mp4", {
+  let { compiledStats, fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate:
       "[hash]--[originalFileName]__[videoCodec]x[audioCodec]+[originalFileName]",
-    outputFiles: [
+    outputFormats: [
       {
         container: "mp4",
       },
@@ -35,7 +35,6 @@ test("output file names are constructed correctly from the fileNameTemplate opti
 
   let expectedFileName = `${expectedFileHash}--BigBuckBunny__h_264xaac+BigBuckBunny.mp4`;
 
-  let compiledStats = await compilePromise;
   let output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(
@@ -49,10 +48,10 @@ test("output file names are constructed correctly from the fileNameTemplate opti
   expect(doesFileExist).toBe(true);
 
   // Setting fileNameTemplate option via query param also works
-  ({ compilePromise, fsVolume } = await compiler(
+  ({ compiledStats, fsVolume } = await compiler(
     "./BigBuckBunny.mp4?fileNameTemplate=my_video_[originalFileName]",
     {
-      outputFiles: [
+      outputFormats: [
         {
           container: "mp4",
         },
@@ -62,7 +61,6 @@ test("output file names are constructed correctly from the fileNameTemplate opti
 
   expectedFileName = `my_video_BigBuckBunny.mp4`;
 
-  compiledStats = await compilePromise;
   output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(

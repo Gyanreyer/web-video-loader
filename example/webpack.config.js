@@ -2,7 +2,8 @@ const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
-  entry: "./src/index.ts",
+  entry: "/index.ts",
+  context: path.resolve(__dirname, 'src'),
   module: {
     rules: [
       {
@@ -14,10 +15,10 @@ module.exports = {
         test: /\.mp4$/,
         use: [
           {
-            loader: path.resolve("../dist/index.js"),
+            loader: path.resolve(__dirname, "../dist/index.js"),
             options: {
               fileNameTemplate: "[originalFileName]-[hash]",
-              outputFiles: [
+              outputFormats: [
                 {
                   container: "mp4",
                   videoCodec: "h.264",
@@ -40,7 +41,7 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: [".ts", ".js", ".mp4"],
+    extensions: [".ts", ".js"],
     modules: [path.resolve(__dirname, "./")],
   },
   output: {
