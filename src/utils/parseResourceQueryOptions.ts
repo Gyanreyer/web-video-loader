@@ -5,8 +5,8 @@ import {
   VideoCodecNameEnum,
   AudioCodecNameEnum,
   OutputFileConfigArray,
-} from "./constants/zodTypes";
-import { VideoCodecName, AudioCodecName } from "./constants/types";
+} from "../constants/zodTypes";
+import { VideoCodecName, AudioCodecName } from "../constants/types";
 
 interface ParsedVideoCodec {
   codecType: "video";

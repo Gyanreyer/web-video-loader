@@ -12,6 +12,7 @@ interface VideoContainerConfig {
   supportedVideoCodecs: VideoCodecName[];
   supportedAudioCodecs: AudioCodecName[];
   mimeTypeContainerString: string;
+  ffmpegOptions: string[];
 }
 
 const videoContainers: { [key: string]: VideoContainerConfig } = {
@@ -29,6 +30,11 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
       AudioCodecNameEnum.enum.flac,
     ],
     mimeTypeContainerString: "video/mp4",
+    ffmpegOptions: [
+      // moveflags options enable encoding mp4 files in chunks so we can write to a stream
+      // rather than creating a file
+      "-movflags frag_keyframe+empty_moov+faststart",
+    ],
   },
   [VideoContainerNameEnum.enum.webm]: {
     fileExtension: "webm",
@@ -43,6 +49,7 @@ const videoContainers: { [key: string]: VideoContainerConfig } = {
       AudioCodecNameEnum.enum.vorbis,
     ],
     mimeTypeContainerString: "video/webm",
+    ffmpegOptions: [],
   },
 };
 

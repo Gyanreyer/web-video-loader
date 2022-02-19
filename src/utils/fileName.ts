@@ -1,11 +1,9 @@
 import { createHash } from "crypto";
 import path from "path";
 
-import {
-  VideoCodecName,
-  AudioCodecName,
-  VideoTranscodeConfig,
-} from "./constants/types";
+import { getFfprobeDataFromBuffer } from "./videoData";
+import { VideoTranscodeConfig } from "../constants/types";
+import ffmpeg from "fluent-ffmpeg";
 
 /**
  * Generates a unique hashed string for a video output which can be used to identify it.
@@ -29,9 +27,7 @@ export function getFileHash(
 
 /**
  * Takes a file name template and a variety of relevant information about the video
- * and constructs a file name to use for the output based on the template,
- * along with a simpler "cache file name" which should be used for reading/writing this video
- * in the cache directory.
+ * and constructs a file name to use for the output based on the template.
  *
  * File name templates support the following tags:
  * "[hash]": The unique hash string identifying the video output
@@ -42,30 +38,62 @@ export function getFileHash(
  * Example:
  * "[originalFileName]-[hash]" --> "BigBuckBunny-abcd1234"
  */
-export function getFileNamesForVideo(
+export async function getOutputFileName(
   fileNameTemplate: string,
   fileHash: string,
   inputFilePath: string,
   outputFileExtension: string,
-  videoCodecName: VideoCodecName,
-  audioCodecName: AudioCodecName | "muted"
-): { outputFileName: string; cacheFileName: string } {
+  videoDataBuffer: Buffer
+) {
   // Get the input file's name without the extension so we can insert that where necessary in the template
   const inputFileName = path.basename(
     inputFilePath,
     path.extname(inputFilePath)
   );
 
+  const videoData = await getFfprobeDataFromBuffer(videoDataBuffer);
+
+  let videoStreamData: ffmpeg.FfprobeStream | null = null;
+  let audioStreamData: ffmpeg.FfprobeStream | null = null;
+
+  for (
+    let i = 0, streamCount = videoData.streams.length;
+    i < streamCount;
+    i += 1
+  ) {
+    const stream = videoData.streams[i];
+    switch (stream.codec_type) {
+      case "video":
+        videoStreamData = stream;
+        break;
+      case "audio":
+        audioStreamData = stream;
+        break;
+      default:
+    }
+  }
+
+  const sizeString = videoStreamData
+    ? `${videoStreamData.width}x${videoStreamData.height}`
+    : "";
+
+  const videoCodecName = videoStreamData?.codec_name || "";
+  const audioCodecName = audioStreamData?.codec_name || "muted";
+
   // Construct the file name that we should use for our output
   // by taking the file name template and filling in any provided tags
   // with their corresponding values.
-  return {
-    outputFileName: `${fileNameTemplate
-      .replace(/\[hash\]/g, fileHash)
-      .replace(/\[originalFileName\]/g, inputFileName)
-      .replace(/\[videoCodec\]/g, videoCodecName.replace(".", "_"))
-      .replace(/\[audioCodec\]/g, audioCodecName)}.${outputFileExtension}`,
-    // only use the hash + file extension for the cached file name so changes to the file name template doesn't make a difference
-    cacheFileName: `${fileHash}.${outputFileExtension}`,
-  };
+  return `${fileNameTemplate
+    .replace(/\[hash\]/g, fileHash)
+    .replace(/\[originalFileName\]/g, inputFileName)
+    .replace(/\[videoCodec\]/g, videoCodecName)
+    .replace(/\[audioCodec\]/g, audioCodecName)
+    .replace(/\[size\]/g, sizeString)}.${outputFileExtension}`;
+}
+
+export function getCacheFileName(
+  fileHash: string,
+  outputFileExtension: string
+) {
+  return `${fileHash}.${outputFileExtension}`;
 }

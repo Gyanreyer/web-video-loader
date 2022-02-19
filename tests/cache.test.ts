@@ -1,7 +1,6 @@
 import { createHash } from "crypto";
 import fs from "fs";
 import path from "path";
-import rimraf from "rimraf";
 
 import compiler from "./compiler";
 
@@ -13,12 +12,6 @@ jest.mock("../dist/cache.js", () => {
   getCachedFileDataSpy = jest.spyOn(original, "getCachedFileData");
 
   return original;
-});
-
-beforeEach(() => {
-  rimraf.sync(
-    `${path.resolve(__dirname, "../node_modules/.cache/web-video-loader/*")}`
-  );
 });
 
 afterEach(() => {

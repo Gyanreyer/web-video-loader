@@ -48,7 +48,7 @@ test("if the input video has no audio track, the output will still not have audi
 
   const outputVideoFileMetadata = await getFfprobeDataForVideoFile(
     fsVolume.createReadStream(
-      path.resolve(__dirname, "dist", "BigBuckBunny-muted-aac.mp4")
+      path.resolve(__dirname, "dist", "BigBuckBunny-muted-muted.mp4")
     )
   );
 
@@ -59,7 +59,7 @@ test("if the input video has no audio track, the output will still not have audi
   const output = compiledStats?.modules?.[0].source;
 
   expect(output).toBe(
-    `module.exports = { sources: [{"src":"/BigBuckBunny-muted-aac.mp4","type":"video/mp4"}] };`
+    `module.exports = { sources: [{"src":"/BigBuckBunny-muted-muted.mp4","type":"video/mp4"}] };`
   );
 });
 

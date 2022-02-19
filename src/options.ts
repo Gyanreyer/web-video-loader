@@ -1,4 +1,4 @@
-import parseOptionsFromResourceQuery from "./parseResourceQueryOptions";
+import parseOptionsFromResourceQuery from "./utils/parseResourceQueryOptions";
 
 // Constants
 import videoContainers from "./constants/videoContainers";

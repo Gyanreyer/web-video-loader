@@ -3,7 +3,7 @@ import { VideoCodecNameEnum } from "./zodTypes";
 interface VideoCodecConfig {
   ffmpegCodecString: string;
   mimeTypeCodecString: string | null;
-  additonalFfmpegOptions?: string[];
+  ffmepgOptions: string[];
 }
 
 const videoCodecs: { [key: string]: VideoCodecConfig } = {
@@ -12,7 +12,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     ffmpegCodecString: "libaom-av1",
     mimeTypeCodecString: "av01",
     // These settings have achieved a VMAF score of 96 in testing
-    additonalFfmpegOptions: [
+    ffmepgOptions: [
       // cpu-used accepts a value from 0-8 defining how much we should prioritize encoding speed over quality.
       // Maxing out to 8 only results in a ~2% quality reduction compared to 0 but SIGNIFICANTLY reduces
       // encoding times by as much as 98%
@@ -34,9 +34,6 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
       // this won't make a difference in lower-resolution videos, but will definitely make a difference with 1080p+ resolutions
       "-tile-columns 1",
       "-tile-rows 1",
-      // Flags enable encoding av1 to a stream buffer
-      "-movflags frag_keyframe+empty_moov",
-      "-movflags +faststart",
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/H.264
@@ -46,7 +43,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     // so there's less value in specifying a codec on the MIME type
     mimeTypeCodecString: null,
     // These settings have achieved a VMAF score of 95 in testing
-    additonalFfmpegOptions: [
+    ffmepgOptions: [
       // crf enables using a variable bitrate to save file size on less complex portions of the video while still targeting
       // a consistent visual quality. This option accepts a value 0-51, where 0 is highest quality and largest file size and
       // 51 is lowest quality but smallest file size.
@@ -57,9 +54,6 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
       // of taking longer.
       // "medium" is a sensible default which produces a good balance between a fast encode time and a relatively small file.
       "-preset medium",
-      // Flags enable encoding h.264 to a stream buffer
-      "-movflags frag_keyframe+empty_moov",
-      "-movflags +faststart",
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/H.265
@@ -67,7 +61,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     ffmpegCodecString: "libx265",
     mimeTypeCodecString: "hvc1",
     // These settings have achieved a VMAF score of 92 in testing
-    additonalFfmpegOptions: [
+    ffmepgOptions: [
       // Add a tag to ensure apple devices can recognize the file as h.265 and play it correctly
       // https://aaron.cc/ffmpeg-hevc-apple-devices/
       "-tag:v hvc1",
@@ -75,9 +69,6 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
       // 28 is a reasonable default which achieves a similar level of quality to h.264 at crf 23
       "-crf 28",
       "-preset medium",
-      // Flags enable encoding h.265 to a stream buffer
-      "-movflags frag_keyframe+empty_moov",
-      "-movflags +faststart",
     ],
   },
   // https://trac.ffmpeg.org/wiki/Encode/VP8
@@ -86,7 +77,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     ffmpegCodecString: "libvpx",
     mimeTypeCodecString: "vp8",
     // These settings have achieved a VMAF score of 78 in testing; not good, using vp8 is not recommended
-    additonalFfmpegOptions: [
+    ffmepgOptions: [
       "-crf 10",
       // deadline option takes a preset value which defines how to balance between encoding speed and quality
       // "good" is a good default for most cases
@@ -99,7 +90,7 @@ const videoCodecs: { [key: string]: VideoCodecConfig } = {
     ffmpegCodecString: "libvpx-vp9",
     mimeTypeCodecString: "vp9",
     // These settings have achieved a VMAF score of 91 in testing
-    additonalFfmpegOptions: [
+    ffmepgOptions: [
       "-crf 32",
       "-b:v 0",
       "-deadline good",

@@ -1,10 +1,15 @@
 import { LoaderContext } from "webpack";
 import path from "path";
+import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
+import { setFfmpegPath } from "fluent-ffmpeg";
 
 import transform from "./transform";
-import { cleanUpCache } from "./cache";
-import { getFileHash } from "./fileName";
+import { cleanUpCache } from "./utils/cache";
+import { getFileHash } from "./utils/fileName";
 import parseOptions from "./options";
+
+// Ensure fluent-ffmpeg is pointed to our ffmpeg installation
+setFfmpegPath(ffmpegPath);
 
 export default async function loader(
   this: LoaderContext<unknown>,

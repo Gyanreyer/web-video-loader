@@ -1,15 +1,18 @@
-import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
-import ffmpeg, { setFfmpegPath } from "fluent-ffmpeg";
+import ffmpeg from "fluent-ffmpeg";
+import { PassThrough } from "stream";
+import fs from "fs";
 
 import { VideoTranscodeConfig } from "./constants/types";
 import videoCodecs from "./constants/videoCodecs";
 import videoContainers from "./constants/videoContainers";
 import audioCodecs from "./constants/audioCodecs";
-import { getCachedFileData, writeToCache } from "./cache";
-import { getFileNamesForVideo } from "./fileName";
-import { PassThrough } from "stream";
-
-setFfmpegPath(ffmpegPath);
+import { getCachedFileData, writeToCache } from "./utils/cache";
+import { getOutputFileName, getCacheFileName } from "./utils/fileName";
+import { getTargetBitrateForVideoResolution } from "./utils/targetBitRate";
+import {
+  getFfprobeDataFromReadStream,
+  getStreamsFromFfprobeData,
+} from "./utils/videoData";
 
 export default async function transform(
   inputFilePath: string,
@@ -34,13 +37,9 @@ export default async function transform(
 
   const isMuted = transcodeConfig.mute;
 
-  const { outputFileName, cacheFileName } = getFileNamesForVideo(
-    fileNameTemplate,
+  const cacheFileName = getCacheFileName(
     fileHash,
-    inputFilePath,
-    videoContainerConfig.fileExtension,
-    videoCodecName,
-    isMuted ? "muted" : audioCodecName
+    videoContainerConfig.fileExtension
   );
 
   // Construct a string representing the MIME type of the video file which can be set on a
@@ -60,6 +59,14 @@ export default async function transform(
     const cachedData = await getCachedFileData(cacheFileName);
 
     if (cachedData) {
+      const outputFileName = await getOutputFileName(
+        fileNameTemplate,
+        fileHash,
+        inputFilePath,
+        videoContainerConfig.fileExtension,
+        cachedData
+      );
+
       return {
         fileName: outputFileName,
         cacheFileName,
@@ -69,32 +76,61 @@ export default async function transform(
     }
   }
 
-  return new Promise((resolve, reject) => {
-    let ffmpegCommand = ffmpeg(inputFilePath)
-      .format(videoContainerName)
-      .videoCodec(videoCodecConfig.ffmpegCodecString);
+  const inputFileReadStream: fs.ReadStream = fs.createReadStream(inputFilePath);
 
+  // Read in data on the input video file with ffprobe; this will help inform the settings we use for transcoding
+  const inputVideoFileData = await getFfprobeDataFromReadStream(
+    inputFileReadStream
+  );
+
+  const { videoStream: inputVideoStream, audioStream: inputAudioStream } =
+    await getStreamsFromFfprobeData(inputVideoFileData);
+
+  if (!inputVideoStream) {
+    throw new Error(
+      `web-video-loader: Could not find a video stream for file "${inputFilePath}"`
+    );
+  }
+
+  let transcodeFfmpegCommand = ffmpeg(inputFilePath)
+    .format(videoContainerName)
+    // Apply any additional ffmpeg options needed for the video container
+    .addOptions(videoContainerConfig.ffmpegOptions)
+    .videoCodec(videoCodecConfig.ffmpegCodecString)
     // Apply any additional ffmpeg options needed for the video codec
-    if (videoCodecConfig.additonalFfmpegOptions) {
-      ffmpegCommand = ffmpegCommand.addOptions(
-        videoCodecConfig.additonalFfmpegOptions
-      );
-    }
+    .addOptions(videoCodecConfig.ffmepgOptions);
 
-    if (transcodeConfig.size) {
-      ffmpegCommand = ffmpegCommand.size(transcodeConfig.size);
-    }
+  if (videoCodecName === "vp8") {
+    // If we have a webm container, add a target bitrate option
+    const inputVideoFileWidth = Number(inputVideoStream.width);
+    const inputVideoFileHeight = Number(inputVideoStream.height);
 
-    if (isMuted) {
-      // Drop any audio from the input if the output should be muted
-      ffmpegCommand = ffmpegCommand.noAudio();
-    } else {
-      const audioCodecConfig = audioCodecs[audioCodecName];
-      ffmpegCommand = ffmpegCommand.audioCodec(
-        audioCodecConfig.ffmpegCodecString
-      );
-    }
+    const targetBitrate = getTargetBitrateForVideoResolution(
+      inputVideoFileWidth,
+      inputVideoFileHeight,
+      Number(inputVideoStream.avg_frame_rate) > 40
+    );
 
+    transcodeFfmpegCommand = transcodeFfmpegCommand.addOption(
+      `-b:v ${targetBitrate}M`
+    );
+  }
+
+  if (transcodeConfig.size) {
+    transcodeFfmpegCommand = transcodeFfmpegCommand.size(transcodeConfig.size);
+  }
+
+  if (isMuted || !inputAudioStream) {
+    // Drop any audio from the input if the output should be muted
+    transcodeFfmpegCommand = transcodeFfmpegCommand.noAudio();
+  } else {
+    const audioCodecConfig = audioCodecs[audioCodecName];
+    transcodeFfmpegCommand = transcodeFfmpegCommand.audioCodec(
+      audioCodecConfig.ffmpegCodecString
+    );
+  }
+
+  return new Promise((resolve, reject) => {
     const streamBuffer = new PassThrough();
 
     const buffers: Buffer[] = [];
@@ -110,6 +146,14 @@ export default async function transform(
         await writeToCache(cacheFileName, outputBuffer);
       }
 
+      const outputFileName = await getOutputFileName(
+        fileNameTemplate,
+        fileHash,
+        inputFilePath,
+        videoContainerConfig.fileExtension,
+        outputBuffer
+      );
+
       resolve({
         fileName: outputFileName,
         cacheFileName: shouldCache ? cacheFileName : null,
@@ -118,10 +162,10 @@ export default async function transform(
       });
     });
 
-    ffmpegCommand
+    transcodeFfmpegCommand
       .on("error", (err: Error, stdout: string, stderr: string) => {
         console.error(
-          `An ffmpeg error occurred while transcoding ${outputFileName}:`,
+          `web-video-loader: an ffmpeg error occurred while transcoding ${inputFilePath}:`,
           stderr
         );
         reject(err);

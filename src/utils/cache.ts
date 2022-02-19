@@ -3,14 +3,14 @@ import { promises as fsPromises } from "fs";
 import path from "path";
 import { promisify } from "util";
 import zlib from "zlib";
-import { tmpdir } from "os";
 
 // Use `node_modules/.cache/web-video-loader` as our cache directory, or if that falls through, use the OS temp directory
-export const cacheDirectory =
-  findCacheDir({
+function getCacheDirectory(create: boolean = false) {
+  return findCacheDir({
     name: "web-video-loader",
-    create: true,
-  }) || tmpdir();
+    create,
+  });
+}
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
@@ -19,6 +19,9 @@ const gunzip = promisify(zlib.gunzip);
  * Attempts to retrieve a video file matching a given file name from the cache
  */
 export async function getCachedFileData(fileName: string) {
+  const cacheDirectory = getCacheDirectory();
+  if (!cacheDirectory) return null;
+
   // Cached video files will be gzipped in an effort to save additional space, so add an additional `.gz` extension to denote that
   const cachedFilePath = path.resolve(cacheDirectory, `${fileName}.gz`);
 
@@ -41,6 +44,9 @@ export async function getCachedFileData(fileName: string) {
  * Writes a gzipped video file to the cache
  */
 export async function writeToCache(fileName: string, fileData: Buffer) {
+  const cacheDirectory = getCacheDirectory(true);
+  if (!cacheDirectory) return;
+
   const cachedFilePath = path.resolve(cacheDirectory, `${fileName}.gz`);
   // gzip the file in an effort to save additional file size
   const compressedData = await gzip(fileData);
@@ -53,6 +59,7 @@ export async function writeToCache(fileName: string, fileData: Buffer) {
  * and removes any dead files from the cache
  */
 export async function cleanUpCache(builtCacheFilePaths: string[]) {
+  const cacheDirectory = getCacheDirectory();
   if (!cacheDirectory) return;
 
   const allCachedFileNames = await fsPromises.readdir(cacheDirectory);

@@ -2,6 +2,14 @@
 
 A webpack loader for transcoding video assets (or gifs!) into web-friendly video formats which can be provided to a video's `<source>` tags to ensure each platform will load and play the smallest video file that it can support.
 
+## TODO
+
+- Offer finer grain control over transcode quality
+  - API to pass through any custom ffmpeg commands you want
+  - Make quality levels dynamically adjust based on the input file
+    - DONE: calculate target bitrate for vp8 based on video dimensions and framerate
+    - TODO: add "quality presets", ie low/medium/high quality
+
 ## Example Webpack config
 
 ```js
@@ -163,6 +171,10 @@ The module created by the loader for an import will be an object with the shape:
 - `sources` <`Object[]`>: An array of objects describing each video asset output from the loader. Each source object has the shape:
   - `src` <`string`>: URL path to the video asset
   - `type` <`string`>: MIME type of the video asset (ie, "video/mp4"). This helps browsers quickly identify whether they can play a given source or not without having to load it first.
+
+Sources are sorted by file size from smallest to largest.
+
+The recommended usage is to add a `<source>` tag for each of these source objects to a `<video>` element; the `<video>` will find the first of these sources which the browser supports and load and play that, so it's important to retain the file size ordering to ensure the smallest supported video file will always be used.
 
 ## Example Usage
 

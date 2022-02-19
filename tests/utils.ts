@@ -10,9 +10,9 @@ export async function getFfprobeDataForVideoFile(
     ffmpeg(videoStream).ffprobe((err, metadata) => {
       if (err) {
         reject(err);
+      } else {
+        resolve(metadata);
       }
-
-      resolve(metadata);
     });
   });
 }

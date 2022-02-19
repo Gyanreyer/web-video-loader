@@ -25,7 +25,7 @@ test("output file names are constructed correctly from the fileNameTemplate opti
 
   let { compiledStats, fsVolume } = await compiler("./BigBuckBunny.mp4", {
     fileNameTemplate:
-      "[hash]--[originalFileName]__[videoCodec]x[audioCodec]+[originalFileName]",
+      "[hash]--[originalFileName]__[videoCodec]x[audioCodec]+[originalFileName]-[size]",
     outputFormats: [
       {
         container: "mp4",
@@ -33,7 +33,7 @@ test("output file names are constructed correctly from the fileNameTemplate opti
     ],
   });
 
-  let expectedFileName = `${expectedFileHash}--BigBuckBunny__h_264xaac+BigBuckBunny.mp4`;
+  let expectedFileName = `${expectedFileHash}--BigBuckBunny__h264xaac+BigBuckBunny-720x480.mp4`;
 
   let output = compiledStats?.modules?.[0].source;
 
